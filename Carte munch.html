@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collaborations Mondiales du Musée Munch</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        #header {
+            padding: 15px 20px;
+            background: #222222;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        .legend {
+            display: flex;
+            gap: 15px;
+            font-size: 0.9rem;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .dot.current { background-color: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
+        .dot.past { background-color: #3498db; }
+        .dot.munch { background-color: #e74c3c; box-shadow: 0 0 10px #e74c3c; }
+
+        #map {
+            width: 100vw;
+            height: calc(100vh - 60px);
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: #242424;
+            color: #fff;
+            border-radius: 8px;
+            padding: 5px;
+        }
+        .leaflet-popup-tip {
+            background: #242424;
+        }
+        .popup-title {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #ffffff;
+        }
+        .popup-museum {
+            font-size: 0.9rem;
+            color: #dddddd;
+            margin-bottom: 6px;
+        }
+        .popup-date {
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        .status-current {
+            background-color: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+            border: 1px solid #2ecc71;
+        }
+        .status-past {
+            background-color: rgba(52, 152, 219, 0.2);
+            color: #3498db;
+            border: 1px solid #3498db;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <h1>MUNCH — Expositions dans le monde</h1>
+        <div class="legend">
+            <div class="legend-item"><span class="dot munch"></span> Musée Munch (Oslo)</div>
+            <div class="legend-item"><span class="dot current"></span> Exposition en cours / à venir</div>
+            <div class="legend-item"><span class="dot past"></span> Exposition passée</div>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Initialisation de la carte centrée sur l'Europe/Monde
+        const map = L.map('map').setView([30, 10], 2.5);
+
+        // Fond de carte OpenStreetMap France (Libre, sans clé API, sans erreur 403)
+        L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap France | &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Données des expositions
+        const exhibitions = [
+            // Musée d'origine
+            { name: "Musée MUNCH", museum: "MUNCH, Bjørvika", city: "Oslo, Norvège", lat: 59.9054, lng: 10.7542, type: "munch", title: "Musée d'Origine", date: "Permanent" },
+
+            // Expositions En cours / À venir (Vert)
+            { name: "Tate Modern", city: "Londres, Royaume-Uni", lat: 51.5076, lng: -0.0994, type: "current", title: "Edvard Munch Tate Modern", date: "11 Nov 2027 – 23 Avr 2028" },
+            { name: "Museo Picasso Málaga", city: "Málaga, Espagne", lat: 36.7213, lng: -4.4214, type: "current", title: "Munch–Picasso", date: "30 Oct 2026 – 28 Fév 2027" },
+            { name: "Kunsthaus Zürich", city: "Zurich, Suisse", lat: 47.3703, lng: 8.5481, type: "current", title: "Maria Lassnig and Edvard Munch", date: "2 Oct 2026 – 21 Fév 2027" },
+            { name: "Willumsens Museum", city: "Frederikssund, Danemark", lat: 55.8383, lng: 12.0620, type: "current", title: "Descendant, Curated by Lars von Trier", date: "6 Juin 2026 – 20 Sept 2026" },
+            { name: "Hamburger Kunsthalle", city: "Hambourg, Allemagne", lat: 53.5549, lng: 10.0030, type: "current", title: "Maria Lassnig and Edvard Munch", date: "27 Mars 2026 – 30 Août 2026" },
+
+            // Expositions Passées (Bleu)
+            { name: "Albertinum, Staatliche Kunstsammlungen", city: "Dresde, Allemagne", lat: 51.0519, lng: 13.7443, type: "past", title: "Paula Modersohn-Becker and Edvard Munch", date: "8 Fév 2026 – 31 Mai 2026" },
+            { name: "Palazzo Bonaparte", city: "Rome, Italie", lat: 41.8966, lng: 12.4823, type: "past", title: "Munch. Il Grido Interiore", date: "11 Fév 2025 – 2 Juin 2025" },
+            { name: "Palazzo Reale", city: "Milan, Italie", lat: 45.4631, lng: 9.1912, type: "past", title: "Munch. Il Grido Interiore", date: "14 Sept 2024 – 26 Janv 2025" },
+            { name: "Museum Barberini", city: "Potsdam, Allemagne", lat: 52.3961, lng: 13.0618, type: "past", title: "Edvard Munch – Trembling Earth", date: "18 Nov 2023 – 1 Avr 2024" },
+            { name: "Berlinische Galerie", city: "Berlin, Allemagne", lat: 52.5033, lng: 13.3980, type: "past", title: "Edvard Munch – Magic of the North", date: "15 Sept 2023 – 22 Janv 2024" },
+            { name: "The Clark Art Institute", city: "Williamstown, USA", lat: 42.7083, lng: -73.2057, type: "past", title: "Edvard Munch – Trembling Earth", date: "10 Juin – 15 Oct 2023" },
+            { name: "Musée d'Orsay", city: "Paris, France", lat: 48.8600, lng: 2.3266, type: "past", title: "Edvard Munch. Un poème de vie, d'amour et de mort", date: "20 Sept 2022 – 22 Janv 2023" },
+            { name: "Albertina Museum", city: "Vienne, Autriche", lat: 48.2047, lng: 16.3683, type: "past", title: "Edvard Munch In Dialogue", date: "Fév – Juin 2022" },
+            { name: "Royal Academy of Arts", city: "Londres, Royaume-Uni", lat: 51.5091, lng: -0.1396, type: "past", title: "Tracey Emin / Edvard Munch: The Loneliness of the Soul", date: "15 Nov 2020 – 28 Fév 2021" },
+            { name: "Kunstsammlung Nordrhein-Westfalen", city: "Düsseldorf, Allemagne", lat: 51.2294, lng: 6.7761, type: "past", title: "Edvard Munch – gesehen von Karl Ove Knausgård", date: "12.10.2019 – 01.03.2020" },
+            { name: "Ithra (King Abdulaziz Center for World Culture)", city: "Dhahran, Arabie Saoudite", lat: 26.3045, lng: 50.1221, type: "past", title: "Landscapes of the Soul", date: "17.06.2019 – 03.09.2019" },
+            { name: "Musée Trétiakov", city: "Moscou, Russie", lat: 55.7415, lng: 37.6208, type: "past", title: "Edvard Munch", date: "16.04.2019 – 14.07.2019" },
+            { name: "British Museum", city: "Londres, Royaume-Uni", lat: 51.5194, lng: -0.1270, type: "past", title: "Edvard Munch: Love and Angst", date: "11.04.2019 – 21.07.2019" },
+            { name: "Tokyo Metropolitan Art Museum", city: "Tokyo, Japon", lat: 35.7171, lng: 139.7738, type: "past", title: "Munch: A Retrospective", date: "27.10.2018 – 20.02.2019" },
+            { name: "The Met", city: "New York, USA", lat: 40.7794, lng: -73.9632, type: "past", title: "Edvard Munch: Between the Clock and the Bed", date: "30.10.2017 – 29.01.2018" },
+            { name: "SFMOMA", city: "San Francisco, USA", lat: 37.7857, lng: -122.4011, type: "past", title: "Edvard Munch: Between the Clock and the Bed", date: "24.06.2017 – 23.09.2017" },
+            { name: "Museum Jorn", city: "Silkeborg, Danemark", lat: 56.1629, lng: 9.5593, type: "past", title: "JORN+MUNCH", date: "11.02.2017 – 28.05.2017" },
+            { name: "Fondation Pierre Gianadda", city: "Martigny, Suisse", lat: 46.0963, lng: 7.0722, type: "past", title: "Hodler / Monet / Munch", date: "04.02.2017 – 11.06.2017" },
+            { name: "Musée Marmottan Monet", city: "Paris, France", lat: 48.8592, lng: 2.2673, type: "past", title: "Hodler / Monet / Munch", date: "04.02.2017 – 11.06.2017" },
+            { name: "Kunstmuseum Bonn", city: "Bonn, Allemagne", lat: 50.7188, lng: 7.1226, type: "past", title: "Edvard Munch bis Max Beckmann", date: "20.10.2016 – 29.01.2017" },
+            { name: "Neue Galerie", city: "New York, USA", lat: 40.7812, lng: -73.9620, type: "past", title: "Munch and Expressionism", date: "18.02.2016 – 13.06.2016" }
+        ];
+
+        // Création des marqueurs
+        exhibitions.forEach(item => {
+            let color = "#3498db";
+            let statusClass = "status-past";
+            let radius = 7;
+
+            if (item.type === "current") {
+                color = "#2ecc71";
+                statusClass = "status-current";
+                radius = 9;
+            } else if (item.type === "munch") {
+                color = "#e74c3c";
+                radius = 11;
+            }
+
+            const marker = L.circleMarker([item.lat, item.lng], {
+                radius: radius,
+                fillColor: color,
+                color: "#ffffff",
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.85
+            }).addTo(map);
+
+            let popupContent = `
+                <div class="popup-title">${item.title}</div>
+                <div class="popup-museum">📍 <b>${item.name}</b> (${item.city})</div>
+            `;
+            
+            if (item.type !== "munch") {
+                popupContent += `<span class="popup-date ${statusClass}">${item.date}</span>`;
+            } else {
+                popupContent += `<span class="popup-date" style="background: rgba(231,76,60,0.2); color: #e74c3c; border: 1px solid #e74c3c;">Siège de la collection</span>`;
+            }
+
+            marker.bindPopup(popupContent);
+        });
+    </script>
+</body>
+</html>
